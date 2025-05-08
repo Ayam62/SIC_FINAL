@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=SIC
+Comment=Share files & clipboard between Linux and Android
+Exec=/home/bashyal/Desktop/sic_project/ubuntu-app/run.py
+Icon=/home/bashyal/Desktop/sic_project/ubuntu-app/resources/icon.png
+Terminal=false
+Type=Application
+Categories=Utility;Network;
+StartupNotify=true

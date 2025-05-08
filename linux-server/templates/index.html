@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIC</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+            text-align: center;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #fff;
+        }
+        .card-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .qrcode {
+            text-align: center;
+            margin: 20px 0;
+        }
+        #qrcode img {
+            margin: 0 auto;
+            display: block;
+        }
+        .code {
+            font-family: monospace;
+            background-color: #f7f7f7;
+            padding: 8px;
+            border-radius: 4px;
+            display: inline-block;
+            font-size: 16px;
+        }
+        .device-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .device-list li {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .device-list li:last-child {
+            border-bottom: none;
+        }
+        .status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status.online {
+            background-color: #4caf50;
+        }
+        .status.offline {
+            background-color: #f44336;
+        }
+        .button {
+            background-color: #3498db;
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #2980b9;
+        }
+        .button.danger {
+            background-color: #e74c3c;
+        }
+        .button.danger:hover {
+            background-color: #c0392b;
+        }
+        .transfers {
+            margin-top: 20px;
+        }
+        .progress {
+            width: 100%;
+            height: 12px;
+            background-color: #f0f0f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4caf50;
+            width: 0%;
+        }
+        .hidden {
+            display: none;
+        }
+        .tab-nav {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab.active {
+            border: 1px solid #ddd;
+            border-bottom: 1px solid white;
+            margin-bottom: -1px;
+            background-color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .info-label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SIC</h1>
+        
+        <div class="tab-nav">
+            <div class="tab active" data-tab="pairing">Pairing</div>
+            <div class="tab" data-tab="devices">Devices</div>
+            <div class="tab" data-tab="transfers">File Transfers</div>
+            <div class="tab" data-tab="settings">Settings</div>
+        </div>
+        
+        <div id="pairing" class="tab-content active">
+            <div class="card">
+                <div class="card-header">Pair a new device</div>
+                <p>To connect your Android device, open the SIC app and scan this QR code:</p>
+                
+                <div class="qrcode">
+                    <div id="qrcode"></div>
+                </div>
+                
+                <p>Or manually enter the pairing code: <span class="code">{{ pairing_code }}</span></p>
+                <p class="info-row">
+                    <span class="info-label">Device ID:</span>
+                    <span>{{ device_id }}</span>
+                </p>
+                <p class="info-row">
+                    <span class="info-label">Hostname:</span>
+                    <span>{{ hostname }}</span>
+                </p>
+            </div>
+        </div>
+        
+        <div id="devices" class="tab-content">
+            <div class="card">
+                <div class="card-header">Connected Devices</div>
+                <ul class="device-list" id="connected-devices">
+                    <li>No devices connected</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div id="transfers" class="tab-content">
+            <div class="card">
+                <div class="card-header">File Transfers</div>
+                <div id="active-transfers">No active transfers</div>
+            </div>
+        </div>
+        
+        <div id="settings" class="tab-content">
+            <div class="card">
+                <div class="card-header">Settings</div>
+                
+                <div class="info-row">
+                    <span class="info-label">Clipboard Sync:</span>
+                    <label class="switch">
+                        <input type="checkbox" id="clipboard-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Notification Mirroring:</span>
+                    <label class="switch">
+                        <input type="checkbox" id="notification-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Auto Reconnect:</span>
+                    <label class="switch">
+                        <input type="checkbox" id="reconnect-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <script>
+        // Generate QR Code
+        const deviceId = "{{ device_id }}";
+        const pairingCode = "{{ pairing_code }}";
+        const pairingUrl = `sic://${deviceId}/${pairingCode}`;
+        
+        // Try two different QR code generation methods for better compatibility
+        try {
+            // Method 1: QRCode.toCanvas
+            QRCode.toCanvas(document.getElementById('qrcode'), pairingUrl, {
+                width: 200,
+                margin: 1
+            }, function (error) {
+                if (error) {
+                    console.error("QRCode.toCanvas error:", error);
+                    // Method 2: QRCode.toDataURL
+                    try {
+                        new QRCode(document.getElementById('qrcode'), {
+                            text: pairingUrl,
+                            width: 200,
+                            height: 200,
+                            colorDark: '#000000',
+                            colorLight: '#ffffff',
+                            correctLevel: QRCode.CorrectLevel.H
+                        });
+                    } catch (err) {
+                        console.error("Alternative QR code method error:", err);
+                    }
+                }
+            });
+        } catch (e) {
+            console.error("QR code generation error:", e);
+            // Create a fallback text representation
+            const qrElement = document.getElementById('qrcode');
+            qrElement.innerHTML = `<div style="text-align:center;padding:10px;border:1px solid #ccc;background:#f5f5f5">
+                <p>QR Code could not be generated.</p>
+                <p>Please use the pairing code: <strong>${pairingCode}</strong></p>
+            </div>`;
+        }
+        
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Deactivate all tabs
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                // Activate selected tab
+                tab.classList.add('active');
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // WebSocket connection
+        let socket = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 10;
+        const reconnectInterval = 3000; // 3 seconds
+        
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = () => {
+                console.log('WebSocket connected');
+                reconnectAttempts = 0;
+                
+                // Request current status
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'get_status'
+                }));
+            };
+            
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                
+                handleMessage(data);
+            };
+            
+            socket.onclose = () => {
+                console.log('WebSocket disconnected');
+                
+                // Attempt reconnection
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    reconnectAttempts++;
+                    setTimeout(connectWebSocket, reconnectInterval);
+                } else {
+                    console.error('Max reconnection attempts reached');
+                }
+            };
+            
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+        
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'status_update':
+                    updateDeviceList(data.devices);
+                    updateTransfers(data.transfers);
+                    break;
+                    
+                case 'device_connected':
+                    requestDeviceList();
+                    break;
+                    
+                case 'device_disconnected':
+                    requestDeviceList();
+                    break;
+                    
+                case 'transfer_update':
+                    updateTransfer(data);
+                    break;
+            }
+        }
+        
+        function requestDeviceList() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'get_devices'
+                }));
+            }
+        }
+        
+        function updateDeviceList(devices) {
+            const deviceList = document.getElementById('connected-devices');
+            
+            if (!devices || devices.length === 0) {
+                deviceList.innerHTML = '<li>No devices connected</li>';
+                return;
+            }
+            
+            deviceList.innerHTML = '';
+            devices.forEach(device => {
+                const li = document.createElement('li');
+                
+                const statusSpan = document.createElement('span');
+                statusSpan.classList.add('status', device.online ? 'online' : 'offline');
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = `${device.name} (${device.type})`;
+                
+                const actionDiv = document.createElement('div');
+                
+                const unpairBtn = document.createElement('button');
+                unpairBtn.classList.add('button', 'danger');
+                unpairBtn.textContent = 'Unpair';
+                unpairBtn.onclick = () => unpairDevice(device.id);
+                
+                actionDiv.appendChild(unpairBtn);
+                
+                li.appendChild(statusSpan);
+                li.appendChild(nameSpan);
+                li.appendChild(actionDiv);
+                
+                deviceList.appendChild(li);
+            });
+        }
+        
+        function updateTransfers(transfers) {
+            const transfersDiv = document.getElementById('active-transfers');
+            
+            if (!transfers || Object.keys(transfers).length === 0) {
+                transfersDiv.innerHTML = 'No active transfers';
+                return;
+            }
+            
+            transfersDiv.innerHTML = '';
+            
+            Object.values(transfers).forEach(transfer => {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                card.id = `transfer-${transfer.file_id}`;
+                
+                const header = document.createElement('div');
+                header.classList.add('card-header');
+                header.textContent = transfer.file_name;
+                
+                const info = document.createElement('div');
+                info.innerHTML = `
+                    <p>${transfer.direction === 'download' ? 'Downloading from' : 'Uploading to'} device</p>
+                    <p>${Math.round(transfer.bytes_transferred / 1024)} KB / ${Math.round(transfer.total_bytes / 1024)} KB</p>
+                `;
+                
+                const progress = document.createElement('div');
+                progress.classList.add('progress');
+                
+                const progressBar = document.createElement('div');
+                progressBar.classList.add('progress-bar');
+                progressBar.style.width = `${transfer.progress}%`;
+                
+                progress.appendChild(progressBar);
+                
+                const actions = document.createElement('div');
+                actions.style.marginTop = '10px';
+                
+                const cancelBtn = document.createElement('button');
+                cancelBtn.classList.add('button', 'danger');
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.onclick = () => cancelTransfer(transfer.file_id);
+                
+                actions.appendChild(cancelBtn);
+                
+                card.appendChild(header);
+                card.appendChild(info);
+                card.appendChild(progress);
+                card.appendChild(actions);
+                
+                transfersDiv.appendChild(card);
+            });
+        }
+        
+        function updateTransfer(data) {
+            const transfer = data.transfer;
+            let transferDiv = document.getElementById(`transfer-${transfer.file_id}`);
+            
+            if (!transferDiv) {
+                requestTransferList();
+                return;
+            }
+            
+            const progressBar = transferDiv.querySelector('.progress-bar');
+            progressBar.style.width = `${transfer.progress}%`;
+            
+            const info = transferDiv.querySelector('div:nth-child(2)');
+            info.innerHTML = `
+                <p>${transfer.direction === 'download' ? 'Downloading from' : 'Uploading to'} device</p>
+                <p>${Math.round(transfer.bytes_transferred / 1024)} KB / ${Math.round(transfer.total_bytes / 1024)} KB</p>
+            `;
+            
+            // If complete or failed, remove after a delay
+            if (transfer.status === 'completed' || transfer.status === 'failed' || transfer.status === 'canceled') {
+                setTimeout(() => {
+                    transferDiv.remove();
+                    
+                    // If no more transfers, show "No active transfers"
+                    if (document.getElementById('active-transfers').children.length === 0) {
+                        document.getElementById('active-transfers').innerHTML = 'No active transfers';
+                    }
+                }, 3000);
+            }
+        }
+        
+        function requestTransferList() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'get_transfers'
+                }));
+            }
+        }
+        
+        function unpairDevice(deviceId) {
+            if (confirm('Are you sure you want to unpair this device?')) {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({
+                        type: 'admin_request',
+                        action: 'unpair_device',
+                        device_id: deviceId
+                    }));
+                }
+            }
+        }
+        
+        function cancelTransfer(transferId) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'cancel_transfer',
+                    transfer_id: transferId
+                }));
+            }
+        }
+        
+        // Toggle settings
+        document.getElementById('clipboard-toggle').addEventListener('change', function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'set_setting',
+                    setting: 'clipboard_sync',
+                    value: this.checked
+                }));
+            }
+        });
+        
+        document.getElementById('notification-toggle').addEventListener('change', function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'set_setting',
+                    setting: 'notification_mirroring',
+                    value: this.checked
+                }));
+            }
+        });
+        
+        document.getElementById('reconnect-toggle').addEventListener('change', function() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({
+                    type: 'admin_request',
+                    action: 'set_setting',
+                    setting: 'auto_reconnect',
+                    value: this.checked
+                }));
+            }
+        });
+        
+        // Connect WebSocket when page loads
+        window.addEventListener('load', () => {
+            connectWebSocket();
+        });
+    </script>
+</body>
+</html>

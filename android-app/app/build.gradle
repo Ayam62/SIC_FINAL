@@ -1,0 +1,76 @@
+// App-level Gradle build script.
+
+plugins {
+    id 'com.android.application' // Essential plugin for building Android applications.
+    // id 'org.jetbrains.kotlin.android' // Add if using Kotlin.
+}
+
+android {
+    // Namespace for the app, used for R class generation. Should match AndroidManifest.xml package.
+    namespace 'com.ecosync'
+    compileSdk 34 // API level for compilation (Android 14).
+
+    defaultConfig {
+        applicationId "com.ecosync" // Unique ID for Play Store and device.
+        minSdk 21 // Minimum Android API level supported (Android 5.0 Lollipop).
+        targetSdk 34 // API level the app is designed and tested for (Android 14).
+        versionCode 1 // Internal version number.
+        versionName "1.0" // User-visible version string.
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner" // Test runner for instrumented tests.
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false // Set to true for production to shrink code and resources.
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // Debug-specific configurations can be added here.
+        }
+    }
+
+    compileOptions {
+        // Java language version compatibility.
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+        // For Java 17 support (requires compatible Android Gradle Plugin):
+        // sourceCompatibility JavaVersion.VERSION_17
+        // targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // kotlinOptions { // Add if using Kotlin.
+    //     jvmTarget = '1.8' // Or '17' for Java 17.
+    // }
+
+    buildFeatures {
+        // viewBinding true // Uncomment to enable View Binding for easier UI element access.
+    }
+}
+
+dependencies {
+    // Essential AndroidX libraries
+    implementation 'androidx.core:core-ktx:1.12.0' // Core Kotlin extensions.
+    implementation 'androidx.appcompat:appcompat:1.6.1' // Backward compatibility for UI features.
+
+    // UI libraries
+    implementation 'com.google.android.material:material:1.11.0' // Material Design components.
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4' // Flexible layout manager.
+
+    // Lifecycle components (ViewModel, LiveData) - Uncomment if needed.
+    // implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0"
+    // implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.7.0"
+
+    // Networking libraries - Uncomment and choose as needed (e.g., OkHttp, Retrofit).
+    // implementation 'com.squareup.okhttp3:okhttp:4.11.0'
+    // implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    // implementation 'com.squareup.retrofit2:converter-gson:2.9.0' // For Gson with Retrofit.
+
+    // JSON parsing - Uncomment if needed (e.g., Gson).
+    // implementation 'com.google.code.gson:gson:2.10.1'
+
+    // Testing libraries
+    testImplementation 'junit:junit:4.13.2' // Unit tests (local JVM).
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5' // Instrumented tests (Android device/emulator).
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1' // UI tests.
+}
