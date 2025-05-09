@@ -176,40 +176,58 @@ async def get_home(request: Request):
         "pairing_code": PAIRING_CODE,
     })
 
-@app.websocket("/ws/{client_id}") # added client_id
+@app.websocket("/ws/{client_id}")
 async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    """WebSocket endpoint for real-time communication"""
     await websocket.accept()
-    connection_id = await manager.connect(websocket, client_id) # Pass client_id
+    connection_id = await manager.connect(websocket, client_id)
+    
     try:
         while True:
-            raw_data = await websocket.receive_text()
-            data = json.loads(raw_data)
-            print("Received JSON:", data)
-            print("raw:",raw_data)
-            logger.debug(f"Message received from {connection_id}: {raw_data}")
-
-            # Handle message based on its type
-            if data.get("types") == "pairing_request":
-                await handle_pairing(websocket, connection_id, data)
-            elif data.get("types") == "clipboard_update":
-                await handle_clipboard(websocket, connection_id, data)
-            elif data.get("types") == "notification":
-                await handle_notification(connection_id, data)
-            elif data.get("types") == "file_transfer_init":
-                await handle_file_transfer_init(websocket, connection_id, data)
-            elif data.get("types") == "file_transfer_chunk":
-                await handle_file_transfer_chunk(connection_id, data)
-            else:
-                logger.warning(f"Unknown message type from {connection_id}: {data.get('types')}")
-
+            try:
+                raw_data = await websocket.receive_text()
+                data = json.loads(raw_data)
+                logger.info(f"Message from {connection_id}: {raw_data}")
+                
+                message_type = data.get('type')
+                if message_type in ['clipboard_update', 'clipboard_sync']:  # Accept both types
+                    await handle_clipboard(websocket, connection_id, data)
+                elif message_type == "pairing_request":
+                    await handle_pairing(websocket, connection_id, data)
+                else:
+                    logger.warning(f"Unknown message type: {message_type}")
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON from {connection_id}: {raw_data}")
     except WebSocketDisconnect:
         manager.disconnect(connection_id)
+        logger.info(f"Client {connection_id} disconnected")
     except Exception as e:
-        logger.error(f"WebSocket error with {connection_id}: {e}")
+        logger.error(f"WebSocket error: {e}")
         manager.disconnect(connection_id)
 
-
+async def handle_admin_request(websocket: WebSocket, data: dict):
+    """Handle administrative requests"""
+    try:
+        action = data['action']
+        
+        if action == "get_status":
+            await websocket.send_text(json.dumps({
+                "type": "admin_response",
+                "status": "running",
+                "server_id": DEVICE_ID,
+                "paired_devices": len(PAIRED_DEVICES),
+                "timestamp": time.time()
+            }))
+        else:
+            await websocket.send_text(json.dumps({
+                "type": "error",
+                "message": f"Unsupported admin action: {action}"
+            }))
+            
+    except KeyError:
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "Admin requests require 'action' field"
+        }))
 
 # Handler functions for different message types
 async def handle_pairing(websocket: WebSocket, connection_id: str, data: dict):
@@ -252,21 +270,36 @@ async def handle_pairing(websocket: WebSocket, connection_id: str, data: dict):
 
 async def handle_clipboard(websocket: WebSocket, connection_id: str, data: dict):
     """Handle clipboard sync messages"""
-    # Check if this is from a paired device
-    device_id = data.get("device_id")
-    if device_id not in PAIRED_DEVICES:
-        logger.warning(f"Clipboard sync from unpaired device: {device_id}")
-        return
+    try:
+        # Get text content (required)
+        text = data.get("text", "")
+        if not text:
+            logger.warning("Clipboard update with empty text")
+            return
 
-    # Set clipboard data locally - will be implemented in clipboard.py
-    from .clipboard import set_clipboard_text, get_clipboard_text
+        # Get device ID (optional for new connections)
+        device_id = data.get("device_id", connection_id)
+        
+        # Log the update regardless of pairing status
+        logger.info(f"Clipboard update received from {device_id}")
 
-    text = data.get("text", "")
-    if text:
-        # Store that we received this text to avoid loop
-        manager.clipboard_last_sync = text
-        set_clipboard_text(text)
-        logger.info(f"Clipboard updated from device {device_id}")
+        # Only check pairing if we have a proper device_id (not connection_id)
+        if 'device_id' in data and device_id not in PAIRED_DEVICES:
+            logger.warning(f"Unpaired device {device_id} attempted clipboard sync")
+            return
+
+        # Import clipboard handlers (modified to handle missing module)
+        try:
+            from .clipboard import set_clipboard_text
+            manager.clipboard_last_sync = text
+            set_clipboard_text(text)
+            logger.info(f"Clipboard updated successfully from {device_id}")
+        except ImportError:
+            logger.error("Clipboard module not available - running in demo mode")
+            manager.clipboard_last_sync = text
+            print(f"[DEMO] Would set clipboard to: {text}")
+    except Exception as e:
+        logger.error(f"Error handling clipboard: {str(e)}")
 
 
 
