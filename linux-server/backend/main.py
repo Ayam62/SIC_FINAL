@@ -129,7 +129,7 @@ manager = ConnectionManager()
 def setup_mdns():
     hostname = socket.gethostname()
     local_ip = socket.gethostbyname(hostname)
-    port = 8000  # Our FastAPI server port
+    port = 8005  # Our FastAPI server port
 
     logger.info(f"Setting up mDNS with IP: {local_ip}")
 

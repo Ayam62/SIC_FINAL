@@ -107,7 +107,7 @@ class SICApplication(Gtk.Application):
         try:
             logger.info("Starting server...")
             # Use the Python interpreter from the virtual environment
-            python_executable = str(PROJECT_ROOT / "venv_with_system_site" / "bin" / "python")
+            python_executable = str(PROJECT_ROOT / "venv" / "bin" / "python")
             
             cmd = [python_executable, str(SERVER_DIR / "serve.py"), 
                    "--host", "0.0.0.0",  # Listen on all interfaces so it's accessible over the network
